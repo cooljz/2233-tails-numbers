@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>2233 尾号工具</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: header with a 16-digit structure strip, two tabs, then a working panel beside a rules column (stacks under 860px). */
+:root{
+  --bg:#f1f3f6; --surface:#ffffff; --ink:#101b27; --muted:#566475; --line:#d8dde4;
+  --fixed:#5f6b7a; --region:#1b68b3; --sys:#9a5b00; --chosen:#c0245a; --check:#18794a;
+  --ok:#18794a; --bad:#b3261e; --warn:#9a5b00;
+  --ok-bg:#e3f3ea; --bad-bg:#fbe7e5; --warn-bg:#fbf0dc;
+  --accent:#1b68b3; --accent-ink:#ffffff;
+  --font-ui:'IBM Plex Sans','PingFang SC','Noto Sans SC','Microsoft YaHei',system-ui,sans-serif;
+  --font-num:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d151e; --surface:#141e2a; --ink:#e7edf4; --muted:#93a1b1; --line:#263445;
+    --fixed:#8a97a7; --region:#5aa9f0; --sys:#e3a44f; --chosen:#f27ca5; --check:#4cc38a;
+    --ok:#4cc38a; --bad:#f2776c; --warn:#e3a44f;
+    --ok-bg:#12301f; --bad-bg:#3a1a18; --warn-bg:#342610;
+    --accent:#5aa9f0; --accent-ink:#07121d;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d151e; --surface:#141e2a; --ink:#e7edf4; --muted:#93a1b1; --line:#263445;
+  --fixed:#8a97a7; --region:#5aa9f0; --sys:#e3a44f; --chosen:#f27ca5; --check:#4cc38a;
+  --ok:#4cc38a; --bad:#f2776c; --warn:#e3a44f;
+  --ok-bg:#12301f; --bad-bg:#3a1a18; --warn-bg:#342610;
+  --accent:#5aa9f0; --accent-ink:#07121d;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--font-ui); font-size:15px; line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:28px 48px;
+}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.page{max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:22px}
+
+header{display:flex; flex-direction:column; gap:10px}
+.eyebrow{margin:0; font-size:.8rem; letter-spacing:.06em; color:var(--muted)}
+h1{margin:0; font-size:1.9rem; line-height:1.2; font-weight:600; letter-spacing:-.01em; text-wrap:balance}
+.lede{margin:0; max-width:62ch; color:var(--muted)}
+
+.strip{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px; min-width:0}
+.strip .num{font-size:1.25rem; gap:.9em}
+.strip .d{width:1.65em; height:2.2em; display:inline-grid; place-items:center; border:1px solid var(--line); border-radius:4px; box-shadow:inset 0 -3px 0 currentColor}
+.strip .grp{gap:4px}
+.legend{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px 18px; font-size:.85rem}
+.legend li{display:flex; gap:8px; align-items:baseline; min-width:0}
+.legend b{font-family:var(--font-num); font-weight:600; flex:none}
+.legend span{color:var(--muted)}
+
+.num{font-family:var(--font-num); display:flex; flex-wrap:nowrap; gap:.8em; font-size:1.05rem; letter-spacing:.02em}
+.grp{display:inline-flex}
+.d.fixed{color:var(--fixed)}
+.d.region{color:var(--region); font-weight:600}
+.d.sys{color:var(--sys); font-weight:600}
+.d.chosen{color:var(--chosen); font-weight:600}
+.d.check{color:var(--check); font-weight:600}
+
+.tabs{display:flex; gap:4px; border-bottom:1px solid var(--line)}
+.tab{background:none; border:0; border-bottom:2px solid transparent; padding:10px 14px; font:inherit; color:var(--muted); cursor:pointer; margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent); font-weight:600}
+
+.layout{display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; align-items:start}
+@media (max-width:860px){ .layout{grid-template-columns:minmax(0,1fr)} }
+.panel{display:flex; flex-direction:column; gap:16px; min-width:0}
+
+.controls{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-wrap:wrap; gap:14px 18px; align-items:flex-end}
+.field{display:flex; flex-direction:column; gap:6px; min-width:0}
+.field.grow{flex:1 1 260px}
+label,.lbl{font-size:.82rem; color:var(--muted)}
+input[type="text"],select{
+  font:inherit; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:8px; padding:9px 11px; min-width:0; max-width:100%;
+}
+input.mono{font-family:var(--font-num); font-size:1.15rem; letter-spacing:.2em}
+input.short{width:5.2em; text-align:center; letter-spacing:.1em}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.seg button{font:inherit; background:var(--bg); color:var(--muted); border:0; padding:9px 16px; cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); font-weight:600}
+.hint{margin:0; font-size:.85rem; color:var(--muted)}
+
+.note{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
+.note strong{font-weight:600}
+.note.ok{background:var(--ok-bg)}
+.note.bad{background:var(--bad-bg)}
+.note.warn{background:var(--warn-bg)}
+.note p{margin:0}
+.note p+p{margin-top:4px; color:var(--muted); font-size:.9rem}
+
+.toolbar{display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; justify-content:space-between}
+.toolbar label{display:inline-flex; gap:8px; align-items:center; color:var(--ink); font-size:.88rem}
+.btn{font:inherit; font-size:.85rem; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:6px 12px; cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+
+.list{list-style:none; margin:0; padding:0; background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.row{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:6px 14px; align-items:center; padding:10px 14px}
+.row+.row{border-top:1px solid var(--line)}
+.row.ex .num{opacity:.55}
+.meta{display:flex; flex-wrap:wrap; gap:4px 6px; min-width:0}
+.tag{display:inline-block; font-size:.76rem; line-height:1.4; padding:2px 8px; border-radius:999px}
+.tag.ok{background:var(--ok-bg); color:var(--ok)}
+.tag.bad{background:var(--bad-bg); color:var(--bad)}
+.tag.warn{background:var(--warn-bg); color:var(--warn)}
+@media (max-width:520px){
+  .row{grid-template-columns:minmax(0,1fr) auto}
+  .row .meta{grid-column:1 / -1; order:3}
+  .num{gap:.55em; font-size:.98rem}
+  .strip .num{font-size:.9rem; gap:.5em}
+  .strip .d{width:1.5em}
+}
+
+.checks{list-style:none; margin:0; padding:0; background:var(--surface); border:1px solid var(--line); border-radius:12px}
+.checks li{display:flex; gap:10px; padding:10px 14px; align-items:baseline}
+.checks li+li{border-top:1px solid var(--line)}
+.ico{flex:none; width:1.3em; text-align:center; font-weight:700}
+.ico.pass{color:var(--ok)} .ico.fail{color:var(--bad)} .ico.warn{color:var(--warn)}
+.parts{margin:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px 16px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px}
+.parts div{min-width:0}
+.parts dt{font-size:.78rem; color:var(--muted)}
+.parts dd{margin:0; font-family:var(--font-num); font-weight:600; overflow-wrap:anywhere}
+
+.rules{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px; min-width:0}
+.rules h2{margin:0; font-size:1.05rem; font-weight:600}
+.rules p{margin:0}
+.rules ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+.rules li+li{border-top:1px solid var(--line)}
+.rule{display:flex; gap:10px; padding:11px 0; cursor:pointer; color:var(--ink); font-size:inherit}
+.rule input{margin-top:.3em; flex:none; width:1.05rem; height:1.05rem; accent-color:var(--accent)}
+.rt{display:flex; flex-direction:column; gap:2px; min-width:0}
+.rtitle{font-weight:500}
+.rnote{font-size:.83rem; color:var(--muted)}
+.rkind{font-size:.76rem; color:var(--muted)}
+.range{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+
+.foot{font-size:.82rem; color:var(--muted); display:flex; flex-direction:column; gap:6px; max-width:78ch}
+.foot p{margin:0}
+.foot a{color:var(--accent)}
+</style>
+
+<main class="page">
+  <header>
+    <p class="eyebrow">中国银行 · 2233 万事达借记卡</p>
+    <h1>2233 尾号工具</h1>
+    <p class="lede">选好地区位和自选尾号，列出所有可能的完整卡号；也可以贴一个完整卡号，检查它成不成立。</p>
+    <div class="strip">
+      <div class="num" id="strip" aria-label="卡号结构示意"></div>
+      <ul class="legend">
+        <li><b class="d fixed">223300</b><span>第 1–6 位，固定前缀</span></li>
+        <li><b class="d region">AA</b><span>第 7–8 位，地区位</span></li>
+        <li><b class="d sys">BB</b><span>第 9–10 位，系统派发，不能选</span></li>
+        <li><b class="d chosen">C</b><span>第 11–15 位，自选</span></li>
+        <li><b class="d check">K</b><span>第 16 位，校验位；选 6 位时也由你选，但必须满足校验</span></li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="功能">
+    <button type="button" class="tab" role="tab" id="tab-query" aria-selected="true" aria-controls="panel-query">按尾号查询</button>
+    <button type="button" class="tab" role="tab" id="tab-verify" aria-selected="false" aria-controls="panel-verify">校验完整卡号</button>
+  </div>
+
+  <div class="layout">
+    <div>
+      <section id="panel-query" class="panel" role="tabpanel" aria-labelledby="tab-query">
+        <div class="controls">
+          <div class="field">
+            <label for="region">地区位（第 7–8 位）</label>
+            <select id="region"></select>
+          </div>
+          <div class="field" id="region-other-wrap" hidden>
+            <label for="region-other">地区位 2 位数字</label>
+            <input type="text" id="region-other" class="mono short" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="00">
+          </div>
+          <div class="field grow">
+            <label for="tail">自选尾号（5 位或 6 位）</label>
+            <input type="text" id="tail" class="mono" inputmode="numeric" maxlength="6" autocomplete="off" spellcheck="false" value="52013">
+          </div>
+        </div>
+        <p class="hint" id="tail-hint"></p>
+        <div id="q-out"></div>
+      </section>
+
+      <section id="panel-verify" class="panel" role="tabpanel" aria-labelledby="tab-verify" hidden>
+        <div class="controls">
+          <div class="field grow">
+            <label for="vin">完整卡号（16 位，空格可有可无）</label>
+            <input type="text" id="vin" class="mono" inputmode="numeric" maxlength="23" autocomplete="off" spellcheck="false" style="letter-spacing:.12em">
+          </div>
+          <div class="field">
+            <span class="lbl" id="vn-label">你自选了几位</span>
+            <div class="seg" role="group" aria-labelledby="vn-label">
+              <button type="button" id="vn5" data-vn="5" aria-pressed="false">5 位</button>
+              <button type="button" id="vn6" data-vn="6" aria-pressed="false">6 位</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint">打开页面时填入的是示例卡号，改成你自己的即可。选 5 位时第 16 位由系统生成，选 6 位时第 16 位也算进连号检查。</p>
+        <div id="v-out"></div>
+      </section>
+    </div>
+
+    <aside class="rules" aria-labelledby="rules-h">
+      <h2 id="rules-h">选号规则</h2>
+      <p class="hint">比较确定的规则默认开启，没有依据的默认关闭。每一条都可以自己切换。</p>
+      <p class="hint">校验位（Luhn 算法）始终检查，不能关闭。</p>
+      <ul id="rules-list"></ul>
+      <div class="field">
+        <span class="lbl">系统位范围（第 9–10 位）</span>
+        <div class="range">
+          <input type="text" id="bb-from" class="mono short" inputmode="numeric" maxlength="2" value="00" aria-label="系统位起始">
+          <span>到</span>
+          <input type="text" id="bb-to" class="mono short" inputmode="numeric" maxlength="2" value="99" aria-label="系统位结束">
+        </div>
+        <span class="hint">卡号可能按批次发放，实际范围不确定，默认全部 00–99。</span>
+      </div>
+      <button type="button" class="btn" id="reset-rules">恢复默认规则</button>
+    </aside>
+  </div>
+
+  <footer class="foot">
+    <p>规则来自论坛帖子，不是中国银行官方文本，银行可能随时调整。地区位对应表同样来自论坛，未核实。本页只在浏览器里计算，不会上传你输入的任何内容。</p>
+    <p>参考：
+      <a href="https://www.nodeseek.com/post-978285-1" target="_blank" rel="noopener">什么是《中行2233》</a> ·
+      <a href="https://www.nodeseek.com/post-983173-1" target="_blank" rel="noopener">注意事项</a> ·
+      <a href="https://www.nodeseek.com/post-974511-1" target="_blank" rel="noopener">地区码讨论</a> ·
+      <a href="https://www.nodeseek.com/post-956941-2" target="_blank" rel="noopener">卡号查询方法</a>
+    </p>
+  </footer>
+</main>
+
+<script>
+/*CORE*/
+const PREFIX = '223300';
+const REGION_LIST = [
+  ['01','北京'],['02','天津'],['03','苏州'],['04','辽宁'],['05','大连'],['06','吉林'],['08','上海'],
+  ['14','宁波'],['17','厦门'],['20','深圳'],['26','广西'],['27','云南'],['28','贵州'],['31','四川'],
+  ['32','重庆'],['36','陕西'],['50','河北'],['53','黑龙江'],['60','山东'],['61','江苏（南京省行）'],
+  ['62','浙江'],['63','安徽'],['64','福建'],['65','江西'],['70','广东（不含深圳）'],['75','湖南'],
+  ['76','湖北'],['78','海南'],['80','河南'],['81','山西'],['83','新疆'],['84','内蒙古'],
+  ['85','甘肃'],['86','宁夏'],['87','青海']
+];
+const REGIONS = Object.fromEntries(REGION_LIST);
+
+const RULE_DEFS = [
+  {id:'run3', on:true, kind:'block',
+   title:'连续 3 个及以上相同数字不可选',
+   note:'论坛帖称不能出现 3 个及以上相同数字（如 888）。较确定。只检查你自选的数字。'},
+  {id:'edge', on:false, kind:'block',
+   title:'连号检查扩大到第 9–16 位',
+   note:'把系统派发的第 9–10 位和末位校验位也算进连号检查。没有来源，默认关。'},
+  {id:'region', on:false, kind:'block',
+   title:'地区位必须在已知分行表内',
+   note:'分行表来自论坛，未核实，默认关。'}
+];
+
+function luhnCheckDigit(first15){
+  let sum = 0;
+  for (let i = 14, k = 0; i >= 0; i--, k++){
+    let d = +first15[i];
+    if (k % 2 === 0){ d *= 2; if (d > 9) d -= 9; }
+    sum += d;
+  }
+  return (10 - (sum % 10)) % 10;
+}
+function luhnValid(num16){ return luhnCheckDigit(num16.slice(0,15)) === +num16[15]; }
+function maxRun(s){
+  let best = 0, run = 0, prev = '';
+  for (const c of s){ if (c === prev) run++; else { run = 1; prev = c; } if (run > best) best = run; }
+  return best;
+}
+/* Per-rule outcomes for the enabled rules. n = number of digits the user chose (5 or 6). */
+function evalRules(card, n, on){
+  const chosen = card.slice(10, 10 + n), region = card.slice(6, 8);
+  const runC = maxRun(chosen), run9 = maxRun(card.slice(8));
+  const out = [];
+  if (on.run3) out.push(runC >= 3
+    ? {id:'run3', state:'fail', msg:'自选数字里有连续 ' + runC + ' 个相同数字'}
+    : {id:'run3', state:'pass', msg:'自选数字里没有连续 3 个相同数字'});
+  if (on.edge) out.push(run9 >= 3
+    ? {id:'edge', state:'fail', msg:'第 9–16 位里有连续 ' + run9 + ' 个相同数字'}
+    : {id:'edge', state:'pass', msg:'第 9–16 位里没有连续 3 个相同数字'});
+  if (on.region) out.push(!REGIONS[region]
+    ? {id:'region', state:'fail', msg:'地区位 ' + region + ' 不在已知分行表内'}
+    : {id:'region', state:'pass', msg:'地区位 ' + region + ' 是' + REGIONS[region]});
+  return out;
+}
+function enumerate(region, tail, on, from, to){
+  const n = tail.length, rows = [];
+  for (let b = from; b <= to; b++){
+    const bb = String(b).padStart(2, '0');
+    let card, luhnOk = true, expected = null;
+    if (n === 5){
+      const f = PREFIX + region + bb + tail;
+      card = f + luhnCheckDigit(f);
+    } else {
+      card = PREFIX + region + bb + tail;
+      expected = luhnCheckDigit(card.slice(0, 15));
+      luhnOk = expected === +card[15];
+    }
+    rows.push({card, bb, luhnOk, expected, rules: evalRules(card, n, on)});
+  }
+  return rows;
+}
+function verifyCard(raw, n, on){
+  const d = raw.replace(/\D/g, '');
+  const items = [];
+  if (d.length !== 16){
+    items.push({state:'fail', msg:'卡号是 ' + d.length + ' 位，需要 16 位'});
+    return {digits:d, items, verdict:'incomplete'};
+  }
+  const prefixOk = d.startsWith(PREFIX);
+  items.push({state: prefixOk ? 'pass' : 'fail',
+    msg: prefixOk ? '前 6 位是 223300' : '前 6 位是 ' + d.slice(0, 6) + '，不是 223300'});
+  const exp = luhnCheckDigit(d.slice(0, 15));
+  const lok = exp === +d[15];
+  items.push({state: lok ? 'pass' : 'fail',
+    msg: lok ? '校验位正确（Luhn）' : '校验位不符：第 16 位应为 ' + exp + '，现在是 ' + d[15]});
+  evalRules(d, n, on).forEach(x => items.push(x));
+  const bad = items.some(x => x.state === 'fail'), warn = items.some(x => x.state === 'warn');
+  return {digits:d, items, verdict: bad ? 'invalid' : (warn ? 'warn' : 'valid')};
+}
+/*END_CORE*/
+
+(function(){
+  const $ = s => document.querySelector(s);
+  const on = {};
+  RULE_DEFS.forEach(r => { on[r.id] = r.on; });
+  try {
+    const saved = JSON.parse(localStorage.getItem('boc2233.rules') || 'null');
+    if (saved) RULE_DEFS.forEach(r => { if (typeof saved[r.id] === 'boolean') on[r.id] = saved[r.id]; });
+  } catch (e) {}
+  function saveRules(){ try { localStorage.setItem('boc2233.rules', JSON.stringify(on)); } catch (e) {} }
+
+  const sampleF = PREFIX + '08' + '36' + '52013';
+  const sampleCard = sampleF + luhnCheckDigit(sampleF);
+  const st = {tab:'query', region:'08', regionOther:'', tail:'52013', from:0, to:99, showEx:false,
+              vin: sampleCard.replace(/(\d{4})(?=\d)/g, '$1 '), vn:5};
+  let lastGood = [];
+
+  function numHTML(card, n){
+    let h = '';
+    for (let g = 0; g < 4; g++){
+      h += '<span class="grp">';
+      for (let i = g * 4; i < g * 4 + 4; i++){
+        const cls = i < 6 ? 'fixed' : i < 8 ? 'region' : i < 10 ? 'sys' : (i < 10 + n ? 'chosen' : 'check');
+        h += '<span class="d ' + cls + '">' + card[i] + '</span>';
+      }
+      h += '</span>';
+    }
+    return h;
+  }
+  const note = (txt, kind, sub) => '<div class="note ' + (kind || '') + '"><p>' + txt + '</p>' + (sub ? '<p>' + sub + '</p>' : '') + '</div>';
+
+  /* ---------- query tab ---------- */
+  function regionCode(){ return st.region === 'other' ? st.regionOther : st.region; }
+  function rowHTML(r, n, excluded){
+    const tags = excluded
+      ? r.reasons.map(m => '<span class="tag bad">' + m + '</span>').join('')
+      : '<span class="tag ok">可用</span>' + r.warn.map(m => '<span class="tag warn">' + m + '</span>').join('');
+    return '<li class="row' + (excluded ? ' ex' : '') + '"><span class="num">' + numHTML(r.card, n) + '</span>' +
+      '<span class="meta">' + tags + '</span>' +
+      '<button type="button" class="btn" data-copy="' + r.card + '">复制</button></li>';
+  }
+  function renderQuery(){
+    const out = $('#q-out'), hint = $('#tail-hint');
+    const region = regionCode(), tail = st.tail, n = tail.length;
+    hint.textContent = n === 5 ? '选 5 位：第 16 位由系统按校验规则生成，所以每个系统位组合都有对应的卡号。'
+      : n === 6 ? '选 6 位：第 16 位也是你选的，只有满足校验的系统位组合才存在，可能一个都没有。'
+      : '输入 5 位或 6 位数字。';
+    if (!/^\d{2}$/.test(region)){ out.innerHTML = note('请先填 2 位地区位（第 7–8 位）。'); return; }
+    if (n < 5){ out.innerHTML = note('再输入 ' + (5 - n) + ' 位数字，就能列出所有可能的卡号。'); return; }
+
+    const rows = enumerate(region, tail, on, Math.min(st.from, st.to), Math.max(st.from, st.to));
+    const good = [], bad = [];
+    rows.forEach(r => {
+      const reasons = [];
+      if (!r.luhnOk) reasons.push('校验位不符，第 16 位应为 ' + r.expected);
+      r.rules.filter(x => x.state === 'fail').forEach(x => reasons.push(x.msg));
+      r.reasons = reasons;
+      r.warn = r.rules.filter(x => x.state === 'warn').map(x => x.msg);
+      (reasons.length ? bad : good).push(r);
+    });
+    lastGood = good.map(r => r.card);
+    const luhnPass = rows.filter(r => r.luhnOk).length;
+    const ruleBad = bad.filter(r => r.luhnOk).length;
+    const name = REGIONS[region] ? '（' + REGIONS[region] + '）' : '';
+
+    let head;
+    if (good.length){
+      head = n === 5
+        ? note('地区位 ' + region + name + '，系统位共 ' + rows.length + ' 种组合，<strong>' + good.length + ' 个可用</strong>' + (ruleBad ? '，' + ruleBad + ' 个被规则排除。' : '。'), 'ok')
+        : note('你选了 6 位。' + rows.length + ' 种系统位组合里有 ' + luhnPass + ' 种通过校验，<strong>' + good.length + ' 个可用</strong>' + (ruleBad ? '，' + ruleBad + ' 个被规则排除。' : '。'), 'ok');
+    } else {
+      const first = rows.find(r => r.luhnOk);
+      const why = first ? [...new Set(first.rules.filter(x => x.state === 'fail').map(x => x.msg))].join('；') : '';
+      if (n === 6 && luhnPass === 0){
+        head = note('<strong>没有可用号码。</strong>这个 6 位尾号在当前系统位范围内，没有一种组合能通过校验。',
+          'bad', '去掉最后一位改选 5 位，第 16 位就由系统生成。');
+      } else {
+        head = note('<strong>没有可用号码。</strong>' + (why ? why + '，所以每个组合都被排除。' : '所有组合都被规则排除。'),
+          'bad', '可以在右侧关掉对应规则，或者换一个尾号。');
+      }
+    }
+    let html = head;
+    if (good.length || bad.length){
+      html += '<div class="toolbar"><label><input type="checkbox" id="show-ex"' + (st.showEx ? ' checked' : '') +
+        '> 同时显示被排除的号码（' + bad.length + '）</label>' +
+        (good.length ? '<button type="button" class="btn" data-copy-all="1">复制全部可用</button>' : '') + '</div>';
+    }
+    if (good.length) html += '<ul class="list">' + good.map(r => rowHTML(r, n, false)).join('') + '</ul>';
+    if (st.showEx && bad.length) html += '<ul class="list">' + bad.map(r => rowHTML(r, n, true)).join('') + '</ul>';
+    out.innerHTML = html;
+  }
+
+  /* ---------- verify tab ---------- */
+  function renderVerify(){
+    const out = $('#v-out');
+    const r = verifyCard(st.vin, st.vn, on);
+    const d = r.digits;
+    let html = '';
+    if (r.verdict === 'incomplete'){
+      html += note('<strong>还不能判断。</strong>' + (d.length < 16 ? '再输入 ' + (16 - d.length) + ' 位。' : '多了 ' + (d.length - 16) + ' 位，请检查。'));
+    } else if (r.verdict === 'valid'){
+      html += note('<strong>这个号码成立。</strong>', 'ok', '前缀、校验位和已开启的规则都通过了。');
+    } else if (r.verdict === 'warn'){
+      html += note('<strong>这个号码成立，但有提醒。</strong>', 'warn', '提醒不影响号码是否成立，请看下面的明细。');
+    } else {
+      html += note('<strong>这个号码不成立。</strong>', 'bad', '下面标红的是没通过的项。');
+    }
+    if (d.length === 16){
+      const region = d.slice(6, 8), n = st.vn;
+      html += '<div class="note"><div class="num">' + numHTML(d, n) + '</div></div>';
+      html += '<dl class="parts">' +
+        '<div><dt>前缀</dt><dd>' + d.slice(0, 6) + '</dd></div>' +
+        '<div><dt>地区位</dt><dd>' + region + (REGIONS[region] ? ' · ' + REGIONS[region] : ' · 未收录') + '</dd></div>' +
+        '<div><dt>系统位</dt><dd>' + d.slice(8, 10) + '</dd></div>' +
+        '<div><dt>自选位（' + n + ' 位）</dt><dd>' + d.slice(10, 10 + n) + '</dd></div>' +
+        (n === 5 ? '<div><dt>校验位</dt><dd>' + d[15] + '</dd></div>' : '') +
+        '</dl>';
+    }
+    html += '<ul class="checks">' + r.items.map(x =>
+      '<li><span class="ico ' + x.state + '">' + (x.state === 'pass' ? '✓' : x.state === 'fail' ? '✗' : '!') + '</span><span>' + x.msg + '</span></li>').join('') + '</ul>';
+    out.innerHTML = html;
+  }
+
+  /* ---------- rules ---------- */
+  function renderRules(){
+    $('#rules-list').innerHTML = RULE_DEFS.map(r =>
+      '<li><label class="rule" for="rule-' + r.id + '"><input type="checkbox" id="rule-' + r.id + '" data-rule="' + r.id + '"' + (on[r.id] ? ' checked' : '') + '>' +
+      '<span class="rt"><span class="rtitle">' + r.title + '</span><span class="rnote">' + r.note + '</span>' +
+      '<span class="rkind">' + (r.kind === 'warn' ? '只提醒' : '排除号码') + ' · 默认' + (r.on ? '开' : '关') + '</span></span></label></li>').join('');
+  }
+  function renderAll(){ renderQuery(); renderVerify(); }
+
+  /* ---------- wiring ---------- */
+  $('#strip').innerHTML = numHTML('223300AABBCCCCCK', 5);
+  const sel = $('#region');
+  sel.innerHTML = REGION_LIST.map(p => '<option value="' + p[0] + '">' + p[0] + ' · ' + p[1] + '</option>').join('') + '<option value="other">其他（手动输入）</option>';
+  sel.value = st.region;
+  $('#vin').value = st.vin;
+  function syncVn(){ ['5','6'].forEach(k => $('#vn' + k).setAttribute('aria-pressed', String(st.vn === +k))); }
+  syncVn();
+  renderRules();
+
+  sel.addEventListener('change', () => {
+    st.region = sel.value;
+    $('#region-other-wrap').hidden = st.region !== 'other';
+    renderQuery();
+  });
+  $('#region-other').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 2);
+    st.regionOther = e.target.value; renderQuery();
+  });
+  $('#tail').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    st.tail = e.target.value; renderQuery();
+  });
+  function bbVal(el, dflt){
+    el.value = el.value.replace(/\D/g, '').slice(0, 2);
+    const v = parseInt(el.value, 10);
+    return Number.isNaN(v) ? dflt : Math.max(0, Math.min(99, v));
+  }
+  $('#bb-from').addEventListener('input', e => { st.from = bbVal(e.target, 0); renderQuery(); });
+  $('#bb-to').addEventListener('input', e => { st.to = bbVal(e.target, 99); renderQuery(); });
+  $('#vin').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/[^\d\s]/g, '');
+    st.vin = e.target.value; renderVerify();
+  });
+  document.querySelectorAll('[data-vn]').forEach(b => b.addEventListener('click', () => {
+    st.vn = +b.dataset.vn; syncVn(); renderVerify();
+  }));
+  $('#rules-list').addEventListener('change', e => {
+    const id = e.target.dataset.rule; if (!id) return;
+    on[id] = e.target.checked; saveRules(); renderAll();
+  });
+  $('#reset-rules').addEventListener('click', () => {
+    RULE_DEFS.forEach(r => { on[r.id] = r.on; }); saveRules(); renderRules(); renderAll();
+  });
+
+  async function copyText(t, btn){
+    let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; }
+    catch (e) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = t; ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+        document.body.appendChild(ta); ta.select();
+        ok = document.execCommand('copy'); ta.remove();
+      } catch (e2) {}
+    }
+    const old = btn.textContent;
+    btn.textContent = ok ? '已复制' : '复制失败，请手动选择';
+    setTimeout(() => { btn.textContent = old; }, 1500);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-copy],[data-copy-all]'); if (!b) return;
+    copyText(b.dataset.copyAll ? lastGood.join('\n') : b.dataset.copy, b);
+  });
+  document.addEventListener('change', e => {
+    if (e.target.id === 'show-ex'){ st.showEx = e.target.checked; renderQuery(); }
+  });
+
+  function setTab(t, push){
+    st.tab = t;
+    ['query', 'verify'].forEach(k => {
+      $('#tab-' + k).setAttribute('aria-selected', String(k === t));
+      $('#panel-' + k).hidden = k !== t;
+    });
+    if (push){ try { location.hash = t; } catch (e) {} }
+  }
+  $('#tab-query').addEventListener('click', () => setTab('query', true));
+  $('#tab-verify').addEventListener('click', () => setTab('verify', true));
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.slice(1);
+    if (h === 'query' || h === 'verify') setTab(h, false);
+  });
+  const h0 = location.hash.slice(1);
+  if (h0 === 'verify') setTab('verify', false);
+
+  renderAll();
+})();
+</script>
+</html>

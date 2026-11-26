@@ -268,10 +268,10 @@ const REGIONS = Object.fromEntries(REGION_LIST);
 const RULE_DEFS = [
   {id:'run3', on:true, kind:'block',
    title:'连续 3 个及以上相同数字不可选',
-   note:'已实测确认：在 App 里输入第 3 个连续相同的数字，会直接提示找不到这类号码。只检查你自选的尾号，系统派发的位出现过 999、555，系统位和尾号交界处出现过 000，都能选到。'},
+   note:'已确认：在 App 里输入第 3 个连续相同的数字，会直接提示找不到这类号码。只检查你自选的尾号。'},
   {id:'max8', on:true, kind:'block', hyp:true,
    title:'后八位里同一数字最多出现 5 次',
-   note:'假设规则，还没被证实。第 9–16 位一起算。实测的 30 个号码都没有违反，其中 11 个恰好有 5 个 0，所以暂时没有被否定。'},
+   note:'假设规则，暂时没有被否定。第 9–16 位一起算。'},
   {id:'region', on:false, kind:'block',
    title:'地区位必须在已知分行表内',
    note:'分行表来自论坛，未核实，默认关。'}

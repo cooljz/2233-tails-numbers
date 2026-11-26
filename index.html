@@ -52,13 +52,20 @@ header{display:flex; flex-direction:column; gap:10px}
 h1{margin:0; font-size:1.9rem; line-height:1.2; font-weight:600; letter-spacing:-.01em; text-wrap:balance}
 .lede{margin:0; max-width:62ch; color:var(--muted)}
 
-.strip{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px; min-width:0}
-.strip .num{font-size:1.25rem; gap:.9em}
-.strip .d{width:1.65em; height:2.2em; display:inline-grid; place-items:center; border:1px solid var(--line); border-radius:4px; box-shadow:inset 0 -3px 0 currentColor}
+.strip{--cell:2.05rem; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px; min-width:0}
+.strip .num{font-size:1.25rem; gap:1.1rem}
+.strip .d{width:var(--cell); height:2.2em; display:inline-grid; place-items:center; border:1px solid var(--line); border-radius:4px; box-shadow:inset 0 -3px 0 currentColor}
 .strip .grp{gap:4px}
+.srows{display:flex; flex-direction:column; gap:14px; min-width:0}
+.srow{display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; min-width:0}
+.slabel{flex:none; width:5.2rem; font-size:.85rem; color:var(--muted)}
+.sdig{display:flex; flex-direction:column; gap:4px; overflow-x:auto; max-width:100%; padding-bottom:2px}
+.strip .idx{font-size:.68rem; color:var(--muted)}
+.idx .i{width:var(--cell); text-align:center}
 .legend{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px 18px; font-size:.85rem}
 .legend li{display:flex; gap:8px; align-items:baseline; min-width:0}
 .legend b{font-family:var(--font-num); font-weight:600; flex:none}
+.strip .legend .d{width:auto; min-width:var(--cell); padding:0 .4em; height:1.9em; font-size:.85rem}
 .legend span{color:var(--muted)}
 
 .num{font-family:var(--font-num); display:flex; flex-wrap:nowrap; gap:.8em; font-size:1.05rem; letter-spacing:.02em}
@@ -119,8 +126,11 @@ input.short{width:5.2em; text-align:center; letter-spacing:.1em}
   .row{grid-template-columns:minmax(0,1fr) auto}
   .row .meta{grid-column:1 / -1; order:3}
   .num{gap:.55em; font-size:.98rem}
-  .strip .num{font-size:.9rem; gap:.5em}
-  .strip .d{width:1.5em}
+  .strip{--cell:1rem}
+  .strip .num{font-size:.85rem; gap:.4rem}
+  .strip .idx{font-size:.6rem}
+  .strip .grp{gap:2px}
+  .slabel{width:100%}
 }
 
 .checks{list-style:none; margin:0; padding:0; background:var(--surface); border:1px solid var(--line); border-radius:12px}
@@ -157,13 +167,13 @@ input.short{width:5.2em; text-align:center; letter-spacing:.1em}
     <h1>2233 尾号工具</h1>
     <p class="lede">选好地区位和自选尾号，列出所有可能的完整卡号；也可以贴一个完整卡号，检查它成不成立。</p>
     <div class="strip">
-      <div class="num" id="strip" aria-label="卡号结构示意"></div>
+      <div class="srows" id="strip" aria-label="卡号结构示意"></div>
       <ul class="legend">
         <li><b class="d fixed">223300</b><span>第 1–6 位，固定前缀</span></li>
         <li><b class="d region">AA</b><span>第 7–8 位，地区位</span></li>
-        <li><b class="d sys">BB</b><span>第 9–10 位，系统派发，不能选</span></li>
-        <li><b class="d chosen">C</b><span>第 11–15 位，自选</span></li>
-        <li><b class="d check">K</b><span>第 16 位，校验位；选 6 位时也由你选，但必须满足校验</span></li>
+        <li><b class="d sys">B</b><span>系统派发，不能选：自选 5 位是第 9–11 位，自选 6 位是第 9–10 位</span></li>
+        <li><b class="d chosen">C</b><span>你自选的尾号：5 位是第 12–16 位，6 位是第 11–16 位</span></li>
+        <li><b class="d check">K</b><span>第 16 位，校验位，也是尾号的最后一位；系统挑选系统位，让整张卡号通过 Luhn 校验</span></li>
       </ul>
     </div>
   </header>
@@ -208,24 +218,24 @@ input.short{width:5.2em; text-align:center; letter-spacing:.1em}
             </div>
           </div>
         </div>
-        <p class="hint">打开页面时填入的是示例卡号，改成你自己的即可。选 5 位时第 16 位由系统生成，选 6 位时第 16 位也算进连号检查。</p>
+        <p class="hint">打开页面时填入的是示例卡号，改成你自己的即可。选 5 位时系统分配第 9–11 位，选 6 位时系统分配第 9–10 位。</p>
         <div id="v-out"></div>
       </section>
     </div>
 
     <aside class="rules" aria-labelledby="rules-h">
       <h2 id="rules-h">选号规则</h2>
-      <p class="hint">比较确定的规则默认开启，没有依据的默认关闭。每一条都可以自己切换。</p>
+      <p class="hint">比较确定的规则默认开启。标了“假设规则”的是还没被实测否定的猜测，也默认开启。没有依据的默认关闭。每一条都可以自己切换。</p>
       <p class="hint">校验位（Luhn 算法）始终检查，不能关闭。</p>
       <ul id="rules-list"></ul>
       <div class="field">
-        <span class="lbl">系统位范围（第 9–10 位）</span>
+        <span class="lbl">系统位范围（第 9–10 位；自选 5 位时第 9–11 位）</span>
         <div class="range">
-          <input type="text" id="bb-from" class="mono short" inputmode="numeric" maxlength="2" value="00" aria-label="系统位起始">
+          <input type="text" id="bb-from" class="mono short" inputmode="numeric" maxlength="3" value="0" aria-label="系统位起始">
           <span>到</span>
-          <input type="text" id="bb-to" class="mono short" inputmode="numeric" maxlength="2" value="99" aria-label="系统位结束">
+          <input type="text" id="bb-to" class="mono short" inputmode="numeric" maxlength="3" placeholder="最大" aria-label="系统位结束">
         </div>
-        <span class="hint">卡号可能按批次发放，实际范围不确定，默认全部 00–99。</span>
+        <span class="hint">卡号可能按批次发放，实际范围不确定，默认不限制。</span>
       </div>
       <button type="button" class="btn" id="reset-rules">恢复默认规则</button>
     </aside>
@@ -258,10 +268,10 @@ const REGIONS = Object.fromEntries(REGION_LIST);
 const RULE_DEFS = [
   {id:'run3', on:true, kind:'block',
    title:'连续 3 个及以上相同数字不可选',
-   note:'论坛帖称不能出现 3 个及以上相同数字（如 888）。较确定。只检查你自选的数字。'},
-  {id:'edge', on:false, kind:'block',
-   title:'连号检查扩大到第 9–16 位',
-   note:'把系统派发的第 9–10 位和末位校验位也算进连号检查。没有来源，默认关。'},
+   note:'已实测确认：在 App 里输入第 3 个连续相同的数字，会直接提示找不到这类号码。只检查你自选的尾号，系统派发的位出现过 999、555，系统位和尾号交界处出现过 000，都能选到。'},
+  {id:'max8', on:true, kind:'block', hyp:true,
+   title:'后八位里同一数字最多出现 5 次',
+   note:'假设规则，还没被证实。第 9–16 位一起算。实测的 30 个号码都没有违反，其中 11 个恰好有 5 个 0，所以暂时没有被否定。'},
   {id:'region', on:false, kind:'block',
    title:'地区位必须在已知分行表内',
    note:'分行表来自论坛，未核实，默认关。'}
@@ -282,36 +292,40 @@ function maxRun(s){
   for (const c of s){ if (c === prev) run++; else { run = 1; prev = c; } if (run > best) best = run; }
   return best;
 }
+function topDigit(s){
+  const c = {}; let d = '', n = 0;
+  for (const x of s){ c[x] = (c[x] || 0) + 1; if (c[x] > n){ n = c[x]; d = x; } }
+  return {d, n};
+}
 /* Per-rule outcomes for the enabled rules. n = number of digits the user chose (5 or 6). */
 function evalRules(card, n, on){
-  const chosen = card.slice(10, 10 + n), region = card.slice(6, 8);
-  const runC = maxRun(chosen), run9 = maxRun(card.slice(8));
+  const chosen = card.slice(16 - n), region = card.slice(6, 8);
+  const runC = maxRun(chosen);
   const out = [];
   if (on.run3) out.push(runC >= 3
     ? {id:'run3', state:'fail', msg:'自选数字里有连续 ' + runC + ' 个相同数字'}
     : {id:'run3', state:'pass', msg:'自选数字里没有连续 3 个相同数字'});
-  if (on.edge) out.push(run9 >= 3
-    ? {id:'edge', state:'fail', msg:'第 9–16 位里有连续 ' + run9 + ' 个相同数字'}
-    : {id:'edge', state:'pass', msg:'第 9–16 位里没有连续 3 个相同数字'});
+  if (on.max8){
+    const t = topDigit(card.slice(8));
+    out.push(t.n > 5
+      ? {id:'max8', state:'fail', msg:'后八位里数字 ' + t.d + ' 出现了 ' + t.n + ' 次，超过 5 次'}
+      : {id:'max8', state:'pass', msg:'后八位里没有数字超过 5 次'});
+  }
   if (on.region) out.push(!REGIONS[region]
     ? {id:'region', state:'fail', msg:'地区位 ' + region + ' 不在已知分行表内'}
     : {id:'region', state:'pass', msg:'地区位 ' + region + ' 是' + REGIONS[region]});
   return out;
 }
+/* The tail is the last n digits (n = 5 or 6) and includes the check digit.
+   The system assigns digits 9..(16-n): 3 digits for n = 5, 2 digits for n = 6. */
 function enumerate(region, tail, on, from, to){
-  const n = tail.length, rows = [];
-  for (let b = from; b <= to; b++){
-    const bb = String(b).padStart(2, '0');
-    let card, luhnOk = true, expected = null;
-    if (n === 5){
-      const f = PREFIX + region + bb + tail;
-      card = f + luhnCheckDigit(f);
-    } else {
-      card = PREFIX + region + bb + tail;
-      expected = luhnCheckDigit(card.slice(0, 15));
-      luhnOk = expected === +card[15];
-    }
-    rows.push({card, bb, luhnOk, expected, rules: evalRules(card, n, on)});
+  const n = tail.length, sysLen = 8 - n, max = Math.pow(10, sysLen) - 1, rows = [];
+  const hi = Math.min(to, max);
+  for (let b = Math.max(0, from); b <= hi; b++){
+    const bb = String(b).padStart(sysLen, '0');
+    const card = PREFIX + region + bb + tail;
+    const expected = luhnCheckDigit(card.slice(0, 15));
+    rows.push({card, bb, luhnOk: expected === +card[15], expected, rules: evalRules(card, n, on)});
   }
   return rows;
 }
@@ -345,9 +359,8 @@ function verifyCard(raw, n, on){
   } catch (e) {}
   function saveRules(){ try { localStorage.setItem('boc2233.rules', JSON.stringify(on)); } catch (e) {} }
 
-  const sampleF = PREFIX + '08' + '36' + '52013';
-  const sampleCard = sampleF + luhnCheckDigit(sampleF);
-  const st = {tab:'query', region:'08', regionOther:'', tail:'52013', from:0, to:99, showEx:false,
+  const sampleCard = enumerate('08', '52013', {}, 0, 999).find(r => r.luhnOk).card;
+  const st = {tab:'query', region:'08', regionOther:'', tail:'52013', from:0, to:null, showEx:false,
               vin: sampleCard.replace(/(\d{4})(?=\d)/g, '$1 '), vn:5};
   let lastGood = [];
 
@@ -356,7 +369,7 @@ function verifyCard(raw, n, on){
     for (let g = 0; g < 4; g++){
       h += '<span class="grp">';
       for (let i = g * 4; i < g * 4 + 4; i++){
-        const cls = i < 6 ? 'fixed' : i < 8 ? 'region' : i < 10 ? 'sys' : (i < 10 + n ? 'chosen' : 'check');
+        const cls = i < 6 ? 'fixed' : i < 8 ? 'region' : i < 16 - n ? 'sys' : i === 15 ? 'check' : 'chosen';
         h += '<span class="d ' + cls + '">' + card[i] + '</span>';
       }
       h += '</span>';
@@ -378,13 +391,14 @@ function verifyCard(raw, n, on){
   function renderQuery(){
     const out = $('#q-out'), hint = $('#tail-hint');
     const region = regionCode(), tail = st.tail, n = tail.length;
-    hint.textContent = n === 5 ? '选 5 位：第 16 位由系统按校验规则生成，所以每个系统位组合都有对应的卡号。'
-      : n === 6 ? '选 6 位：第 16 位也是你选的，只有满足校验的系统位组合才存在，可能一个都没有。'
+    hint.textContent = n === 5 ? '选 5 位：系统分配第 9–11 位。最后一位是校验位，只有让整张卡号通过校验的组合才存在。系统位不设限时，1000 种组合里恰有 100 种通过。'
+      : n === 6 ? '选 6 位：系统分配第 9–10 位，同样只有通过校验的组合才存在。系统位不设限时，100 种组合里恰有 10 种通过，银行实际能分配的可能更少。'
       : '输入 5 位或 6 位数字。';
     if (!/^\d{2}$/.test(region)){ out.innerHTML = note('请先填 2 位地区位（第 7–8 位）。'); return; }
     if (n < 5){ out.innerHTML = note('再输入 ' + (5 - n) + ' 位数字，就能列出所有可能的卡号。'); return; }
 
-    const rows = enumerate(region, tail, on, Math.min(st.from, st.to), Math.max(st.from, st.to));
+    const maxSys = Math.pow(10, 8 - n) - 1, hiSys = st.to === null ? maxSys : st.to;
+    const rows = enumerate(region, tail, on, Math.min(st.from, hiSys), Math.max(st.from, hiSys));
     const good = [], bad = [];
     rows.forEach(r => {
       const reasons = [];
@@ -401,21 +415,20 @@ function verifyCard(raw, n, on){
 
     let head;
     if (good.length){
-      head = n === 5
-        ? note('地区位 ' + region + name + '，系统位共 ' + rows.length + ' 种组合，<strong>' + good.length + ' 个可用</strong>' + (ruleBad ? '，' + ruleBad + ' 个被规则排除。' : '。'), 'ok')
-        : note('你选了 6 位。' + rows.length + ' 种系统位组合里有 ' + luhnPass + ' 种通过校验，<strong>' + good.length + ' 个可用</strong>' + (ruleBad ? '，' + ruleBad + ' 个被规则排除。' : '。'), 'ok');
+      head = note('地区位 ' + region + name + '，系统位（' + (n === 5 ? '第 9–11 位' : '第 9–10 位') + '）共 ' + rows.length + ' 种组合，' + luhnPass + ' 种能通过校验，<strong>' + good.length + ' 个可用</strong>' + (ruleBad ? '，' + ruleBad + ' 个被规则排除。' : '。'), 'ok');
     } else {
       const first = rows.find(r => r.luhnOk);
       const why = first ? [...new Set(first.rules.filter(x => x.state === 'fail').map(x => x.msg))].join('；') : '';
-      if (n === 6 && luhnPass === 0){
-        head = note('<strong>没有可用号码。</strong>这个 6 位尾号在当前系统位范围内，没有一种组合能通过校验。',
-          'bad', '去掉最后一位改选 5 位，第 16 位就由系统生成。');
+      if (luhnPass === 0){
+        head = note('<strong>没有可用号码。</strong>在当前系统位范围内，没有一种组合能让这个尾号通过校验。',
+          'bad', '放宽系统位范围，或者换一个尾号。');
       } else {
         head = note('<strong>没有可用号码。</strong>' + (why ? why + '，所以每个组合都被排除。' : '所有组合都被规则排除。'),
           'bad', '可以在右侧关掉对应规则，或者换一个尾号。');
       }
     }
     let html = head;
+    if (good.length > 10) html += '<p class="hint">App 一次只推荐 10 个号码，每天有 5 次刷新机会，一天最多看到 50 个，所以这里的候选不一定都能在 App 里看到。</p>';
     if (good.length || bad.length){
       html += '<div class="toolbar"><label><input type="checkbox" id="show-ex"' + (st.showEx ? ' checked' : '') +
         '> 同时显示被排除的号码（' + bad.length + '）</label>' +
@@ -447,9 +460,9 @@ function verifyCard(raw, n, on){
       html += '<dl class="parts">' +
         '<div><dt>前缀</dt><dd>' + d.slice(0, 6) + '</dd></div>' +
         '<div><dt>地区位</dt><dd>' + region + (REGIONS[region] ? ' · ' + REGIONS[region] : ' · 未收录') + '</dd></div>' +
-        '<div><dt>系统位</dt><dd>' + d.slice(8, 10) + '</dd></div>' +
-        '<div><dt>自选位（' + n + ' 位）</dt><dd>' + d.slice(10, 10 + n) + '</dd></div>' +
-        (n === 5 ? '<div><dt>校验位</dt><dd>' + d[15] + '</dd></div>' : '') +
+        '<div><dt>系统位（' + (n === 5 ? '第 9–11 位' : '第 9–10 位') + '）</dt><dd>' + d.slice(8, 16 - n) + '</dd></div>' +
+        '<div><dt>自选位（' + n + ' 位）</dt><dd>' + d.slice(16 - n) + '</dd></div>' +
+        '<div><dt>校验位（第 16 位）</dt><dd>' + d[15] + '</dd></div>' +
         '</dl>';
     }
     html += '<ul class="checks">' + r.items.map(x =>
@@ -462,12 +475,23 @@ function verifyCard(raw, n, on){
     $('#rules-list').innerHTML = RULE_DEFS.map(r =>
       '<li><label class="rule" for="rule-' + r.id + '"><input type="checkbox" id="rule-' + r.id + '" data-rule="' + r.id + '"' + (on[r.id] ? ' checked' : '') + '>' +
       '<span class="rt"><span class="rtitle">' + r.title + '</span><span class="rnote">' + r.note + '</span>' +
-      '<span class="rkind">' + (r.kind === 'warn' ? '只提醒' : '排除号码') + ' · 默认' + (r.on ? '开' : '关') + '</span></span></label></li>').join('');
+      '<span class="rkind">' + (r.kind === 'warn' ? '只提醒' : '排除号码') + ' · 默认' + (r.on ? '开' : '关') + (r.hyp ? ' · 假设规则' : '') + '</span></span></label></li>').join('');
   }
   function renderAll(){ renderQuery(); renderVerify(); }
 
   /* ---------- wiring ---------- */
-  $('#strip').innerHTML = numHTML('223300AABBCCCCCK', 5);
+  function idxHTML(){
+    let h = '';
+    for (let g = 0; g < 4; g++){
+      h += '<span class="grp">';
+      for (let i = g * 4; i < g * 4 + 4; i++) h += '<span class="i">' + (i + 1) + '</span>';
+      h += '</span>';
+    }
+    return h;
+  }
+  $('#strip').innerHTML = [['自选 5 位', '223300AABBBCCCCK', 5], ['自选 6 位', '223300AABBCCCCCK', 6]].map(r =>
+    '<div class="srow"><span class="slabel">' + r[0] + '</span><div class="sdig"><div class="num">' + numHTML(r[1], r[2]) +
+    '</div><div class="num idx" aria-hidden="true">' + idxHTML() + '</div></div></div>').join('');
   const sel = $('#region');
   sel.innerHTML = REGION_LIST.map(p => '<option value="' + p[0] + '">' + p[0] + ' · ' + p[1] + '</option>').join('') + '<option value="other">其他（手动输入）</option>';
   sel.value = st.region;
@@ -490,12 +514,12 @@ function verifyCard(raw, n, on){
     st.tail = e.target.value; renderQuery();
   });
   function bbVal(el, dflt){
-    el.value = el.value.replace(/\D/g, '').slice(0, 2);
+    el.value = el.value.replace(/\D/g, '').slice(0, 3);
     const v = parseInt(el.value, 10);
-    return Number.isNaN(v) ? dflt : Math.max(0, Math.min(99, v));
+    return Number.isNaN(v) ? dflt : Math.max(0, Math.min(999, v));
   }
   $('#bb-from').addEventListener('input', e => { st.from = bbVal(e.target, 0); renderQuery(); });
-  $('#bb-to').addEventListener('input', e => { st.to = bbVal(e.target, 99); renderQuery(); });
+  $('#bb-to').addEventListener('input', e => { st.to = bbVal(e.target, null); renderQuery(); });
   $('#vin').addEventListener('input', e => {
     e.target.value = e.target.value.replace(/[^\d\s]/g, '');
     st.vin = e.target.value; renderVerify();
